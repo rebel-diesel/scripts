@@ -35,7 +35,6 @@ def wait_until_stable(driver, class_name, delay=0.5, max_wait=5):
 def parse_fkko_pages(output_path="output/fkko_full.csv", log_path="output/fkko.log"):
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     open(log_path, "w").close()  # очищаем лог
-    print(1)
     log("Старт парсинга ФККО", log_path)
     service = Service(ChromeDriverManager().install())
     options = webdriver.ChromeOptions()
