@@ -18,20 +18,20 @@ def main():
 
     if not args.parse and not args.process:
         print("Ничего не указано. Что будем делать?")
-        print("  p — только парсинг")
-        print("  o — только обработка")
-        print("  b — и парсинг, и обработка")
-        print("  q — выход")
-        choice = input("Выбор (p/o/b/q): ").strip().lower()
+        print("  1 — только парсинг")
+        print("  2 — только обработка")
+        print("  3 — и парсинг, и обработка")
+        print("  4 — выход")
+        choice = input("Выбор (1/2/3/4): ").strip().lower()
 
-        if choice == "p":
+        if choice == "1":
             parse_fkko_pages()
-        elif choice == "o":
+        elif choice == "2":
             process_fkko()
-        elif choice == "b":
+        elif choice == "3":
             parse_fkko_pages()
             process_fkko()
-        elif choice == "q":
+        elif choice == "4":
             print("Выход.")
         else:
             print("Неизвестная команда. Завершение.")
