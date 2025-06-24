@@ -37,7 +37,6 @@ def parse_fkko_pages(output_path="output/fkko_full.csv", log_path="output/fkko.l
     open(log_path, "w").close()  # очищаем лог
 
     log("Старт парсинга ФККО", log_path)
-
     service = Service(ChromeDriverManager().install())
     options = webdriver.ChromeOptions()
     options.binary_location = r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe"
