@@ -38,7 +38,7 @@ def parse_fkko_pages(output_path="output/fkko_full.csv", log_path="output/fkko.l
     log("Старт парсинга ФККО", log_path)
     service = Service(ChromeDriverManager().install())
     options = webdriver.ChromeOptions()
-    options.binary_location = r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe"
+    options.binary_location = r"c:\Program Files\Google\Chrome\Application\chrome.exe"
     options.add_argument("--headless")
 
     driver = webdriver.Chrome(service=service, options=options)
