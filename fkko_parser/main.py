@@ -10,7 +10,6 @@ def main():
     parser.add_argument("--process", action="store_true", help="Обработать данные и создать Excel")
 
     args = parser.parse_args()
-
     if args.parse:
         parse_fkko_pages()
     if args.process:

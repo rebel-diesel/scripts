@@ -3,11 +3,12 @@ import os
 from openpyxl import load_workbook
 
 # Пути к справочникам и файлам
-TYPE_DICT_PATH = "dic_01_type.txt"
-FORM_DICT_PATH = "dic_02_form.txt"
+TEMPLATE_XLSX = "input/FKKO_template.xlsx"
+TYPE_DICT_PATH = "input/dic_01_type.txt"
+FORM_DICT_PATH = "input/dic_02_form.txt"
 INPUT_CSV = "output/fkko_full.csv"
 OUTPUT_XLSX = "output/FKKO_2025.xlsx"
-TEMPLATE_XLSX = "FKKO_template.xlsx"
+
 
 # Загрузка справочников
 def load_dictionary(file_path):
