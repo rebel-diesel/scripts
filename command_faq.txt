@@ -1,0 +1,5 @@
+pip freeze > requirements.txt
+
+pip install -r requirements.txt
+
+git add fkko_parser/parsing_old.py fkko_parser/processing_old.py
