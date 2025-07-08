@@ -1,12 +1,11 @@
 import os
-import sys
 import subprocess
 import warnings
-import time
 from pathlib import Path
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from faster_whisper import WhisperModel
-from tqdm import tqdm
+import threading
+import time
 
 warnings.filterwarnings("ignore", category=UserWarning, module="ctranslate2")
 
@@ -22,7 +21,6 @@ FFMPEG_PATH = BASE_DIR / "input" / "ffmpeg.exe"
 
 # ===================== Получает дату и время записи из метаданных m4a-файлов =====================
 def get_recording_timestamp(file_path):
-
     command = [
         str(FFMPEG_PATH),
         "-i", str(file_path),
@@ -34,20 +32,17 @@ def get_recording_timestamp(file_path):
             try:
                 date_str = line.strip().split(":", 1)[1].strip()
                 utc_dt = datetime.fromisoformat(date_str.replace("Z", "+00:00"))
-                local_offset = datetime.now().astimezone().utcoffset()
-                local_dt = utc_dt + local_offset
+                local_dt = utc_dt.astimezone()  # автоопределение часового пояса
                 return local_dt.strftime("%Y%m%d_%H%M%S")
             except Exception:
                 pass
     return None
 
+
 # ===================== Переименовывает все .m4a файлы =====================
 def rename_files_with_timestamp():
-
     for file in INPUT_VOICE_DIR.glob("*.m4a"):
-        timestamp = get_recording_timestamp(file)
-        if not timestamp:
-            timestamp = "unknown"
+        timestamp = get_recording_timestamp(file) or "unknown"
         new_name = f"{timestamp}_{file.name}"
         new_path = file.with_name(new_name)
         if not new_path.exists():
@@ -55,37 +50,44 @@ def rename_files_with_timestamp():
             write_log(f"Переименован: {file.name} → {new_name}")
 
 
-
 # ===================== Конвертация m4a -> wav =====================
 def convert_m4a_to_wav(input_path, output_path):
-    """
-    Конвертирует файл m4a в wav через локальный ffmpeg.exe
-    """
     command = [
         str(FFMPEG_PATH),
         "-i", str(input_path),
-        "-ac", "1",  # моно
-        "-ar", "16000",  # частота дискретизации 16кГц
+        "-ac", "1",
+        "-ar", "16000",
         str(output_path)
     ]
     subprocess.run(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 
 # ===================== Распознавание речи =====================
-def transcribe_audio(wav_path):
-    """
-    Распознаёт текст из wav-файла через Whisper
-    """
-    model = WhisperModel("base", compute_type="int8")
-    segments, _ = model.transcribe(str(wav_path))
-    return " ".join([seg.text.strip() for seg in segments])
+def transcribe_audio(wav_path, model, current, total):
+    done = False
+
+    def spinner():
+        symbols = ['|', '/', '-', '\\']
+        i = 0
+        while not done:
+            print(f"\rРаспознаю {current}/{total}... {symbols[i % len(symbols)]}", end="", flush=True)
+            i += 1
+            time.sleep(0.2)
+        print(f"\rГотово: {current}/{total} записей обработано.      ")
+
+    spinner_thread = threading.Thread(target=spinner)
+    spinner_thread.start()
+
+    try:
+        segments, _ = model.transcribe(str(wav_path))
+        return " ".join([seg.text.strip() for seg in segments])
+    finally:
+        done = True
+        spinner_thread.join()
 
 
 # ===================== Запись лога =====================
 def write_log(message):
-    """
-    Записывает сообщение в лог-файл с таймстемпом
-    """
     with open(OUTPUT_LOG_FILE, "a", encoding="utf-8") as log_file:
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         log_file.write(f"[{timestamp}] {message}\n")
@@ -93,19 +95,17 @@ def write_log(message):
 
 # ===================== Главный запуск =====================
 def run_voice2txt():
-    """
-    Основная логика: обрабатывает все .m4a файлы из папки input/voices,
-    сохраняет результат в wav и .txt с тем же именем в подпапках output/wav и output/txt
-    """
     OUTPUT_WAV_DIR.mkdir(parents=True, exist_ok=True)
     OUTPUT_TXT_DIR.mkdir(parents=True, exist_ok=True)
     OUTPUT_LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
 
     rename_files_with_timestamp()
-
     audio_files = list(INPUT_VOICE_DIR.glob("*.m4a"))
 
-    for file in tqdm(audio_files, desc="Обработка записей"):
+    model = WhisperModel("base", compute_type="int8")
+
+    total = len(audio_files)
+    for idx, file in enumerate(audio_files, start=1):
         wav_file = OUTPUT_WAV_DIR / (file.stem + ".wav")
         txt_file = OUTPUT_TXT_DIR / (file.stem + ".txt")
 
@@ -113,7 +113,7 @@ def run_voice2txt():
         convert_m4a_to_wav(file, wav_file)
 
         write_log(f"Распознавание {wav_file.name}")
-        text = transcribe_audio(wav_file)
+        text = transcribe_audio(wav_file, model, idx, total)
 
         with open(txt_file, "w", encoding="utf-8") as f:
             f.write(text)
