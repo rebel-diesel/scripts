@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from faster_whisper import WhisperModel
 import threading
 import time
+import re
 
 warnings.filterwarnings("ignore", category=UserWarning, module="ctranslate2")
 
@@ -54,6 +55,7 @@ def rename_files_with_timestamp():
 def convert_m4a_to_wav(input_path, output_path):
     command = [
         str(FFMPEG_PATH),
+        "-y",
         "-i", str(input_path),
         "-ac", "1",
         "-ar", "16000",
@@ -61,6 +63,10 @@ def convert_m4a_to_wav(input_path, output_path):
     ]
     subprocess.run(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
+def format_timestamp(seconds: float) -> str:
+    minutes = int(seconds // 60)
+    seconds = int(seconds % 60)
+    return f"{minutes:02d}:{seconds:02d}"
 
 # ===================== Распознавание речи =====================
 def transcribe_audio(wav_path, model, current, total):
@@ -80,7 +86,31 @@ def transcribe_audio(wav_path, model, current, total):
 
     try:
         segments, _ = model.transcribe(str(wav_path))
-        return " ".join([seg.text.strip() for seg in segments])
+        paragraphs = []
+        current_text = []
+        start_time = None
+
+        for seg in segments:
+            text = seg.text.strip()
+            if not start_time:
+                start_time = seg.start
+            current_text.append(text)
+
+            if re.search(r"[.!?…]$", text):
+                timestamp = format_timestamp(start_time)
+                paragraph = " ".join(current_text).strip()
+                paragraphs.append(f"[{timestamp}] {paragraph}")
+                current_text = []
+                start_time = None
+
+        # остаток без финального знака препинания
+        if current_text:
+            timestamp = format_timestamp(start_time or 0)
+            paragraph = " ".join(current_text).strip()
+            paragraphs.append(f"[{timestamp}] {paragraph}")
+
+        return "\n\n".join(paragraphs)
+
     finally:
         done = True
         spinner_thread.join()
