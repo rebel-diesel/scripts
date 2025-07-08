@@ -118,7 +118,7 @@ def transcribe_audio(wav_path, model, current, total):
 
 # ===================== Запись лога =====================
 def write_log(message):
-    with open(OUTPUT_LOG_FILE, "a", encoding="utf-8") as log_file:
+    with open(OUTPUT_LOG_FILE, "a", encoding="utf-8-sig") as log_file:
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         log_file.write(f"[{timestamp}] {message}\n")
 
@@ -145,7 +145,7 @@ def run_voice2txt():
         write_log(f"Распознавание {wav_file.name}")
         text = transcribe_audio(wav_file, model, idx, total)
 
-        with open(txt_file, "w", encoding="utf-8") as f:
+        with open(txt_file, "w", encoding="utf-8-sig") as f:
             f.write(text)
 
         write_log(f"Готово: {txt_file.name}\n")
