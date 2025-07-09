@@ -99,11 +99,10 @@ def transcribe_audio(wav_path, model, current, total, base_datetime):
         # segments, _ = model.transcribe(str(wav_path), beam_size=5, language="ru")
         segments, _ = model.transcribe(
             str(wav_path),
-            beam_size=5,
             language="ru",
+            beam_size=5,
             word_timestamps=True,
-            vad_filter=True,
-            no_speech_threshold=0.3  # можно варьировать от 0.2 до 0.6
+            vad_filter=True
         )
         paragraphs = []
         current_text = []
@@ -152,8 +151,8 @@ def run_voice2txt():
 
     # model = WhisperModel("base", compute_type="int8")
     # model = WhisperModel("small", compute_type="int8")
-    model = WhisperModel("medium", compute_type="int8")
-    # model = WhisperModel("large-v3", compute_type="float16")
+    # model = WhisperModel("medium", compute_type="int8")
+    model = WhisperModel("large-v3", compute_type="float32", device="cpu")
 
 
 
