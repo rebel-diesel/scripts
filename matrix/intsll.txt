@@ -1,0 +1,3 @@
+pyinstaller main.spec
+
+pyinstaller --onefile --noconsole main.py
