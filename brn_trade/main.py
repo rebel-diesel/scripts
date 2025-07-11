@@ -1,4 +1,4 @@
-from import_brn import init_db
+from visualization import show_chart
 
 if __name__ == '__main__':
-    init_db()
+    show_chart()
