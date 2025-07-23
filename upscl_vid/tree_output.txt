@@ -1,0 +1,11 @@
+﻿Структура от: d:\Programming\Python\scripts\upscl_vid
+├── driver/
+│   └── ffmpeg.exe
+├── input/
+│   └── Блестящие - там только там 1996.mp4
+├── output/
+├── catalog_tree.bat
+├── draw_tree.ps1
+├── main.py
+├── tree_output.txt
+└── upscale.py
