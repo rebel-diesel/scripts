@@ -320,8 +320,11 @@ async function main() {
     mkdirSync(dirname(STATE_FILE), { recursive: true });
     writeFileSync(STATE_FILE, JSON.stringify({ open, at: now }));
   }
-  process.exitCode = problems.length ? 1 : 0;
+  // Красный запуск — только когда тревога НЕ дошла до Telegram: тогда письмо
+  // GitHub о провале становится запасным каналом. Сама проблема запуск не
+  // краснит — иначе письмо приходило бы каждые 5 минут, пока она держится.
+  process.exitCode = sent ? 0 : 1;
 }
 
 // Запуск только как программа; при импорте (тесты) — ничего не делаем.
-if (import.meta.url === pathToFileURL(process.argv[1]).href) await main();
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) await main();
