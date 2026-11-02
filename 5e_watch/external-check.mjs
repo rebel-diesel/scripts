@@ -73,7 +73,7 @@ async function resolveVia(resolver, name) {
 }
 
 /** GET по адресу `connectTo` с Host и SNI = name; сертификат проверяется. */
-function httpsGet(name, path, connectTo) {
+function httpsGet(name, path, connectTo, withBody = false) {
   return new Promise((resolve) => {
     const req = https.request(
       {
@@ -85,8 +85,14 @@ function httpsGet(name, path, connectTo) {
         timeout: TIMEOUT_MS,
       },
       (res) => {
-        res.resume();
-        resolve({ code: res.statusCode });
+        if (!withBody) {
+          res.resume();
+          return resolve({ code: res.statusCode });
+        }
+        const chunks = [];
+        res.on('data', (c) => chunks.push(c));
+        res.on('end', () => resolve({ code: res.statusCode, body: Buffer.concat(chunks).toString() }));
+        res.on('error', (e) => resolve({ code: 0, error: e.code || e.message }));
       },
     );
     req.on('timeout', () => req.destroy(new Error('таймаут')));
@@ -241,18 +247,23 @@ async function run() {
     });
 
   if (PULSE_URL) {
+    // Пульс читается по IP сервера, Host/SNI и сертификат — по имени: он
+    // отвечает на вопрос «живо ли наблюдение на сервере», а доступность по
+    // имени (DNS) проверяется выше отдельно. Иначе отказ DNS дал бы ещё и
+    // ложное «пульс не читается».
     let verdict;
-    try {
-      const res = await fetch(PULSE_URL, { signal: AbortSignal.timeout(TIMEOUT_MS) });
+    const u = new URL(PULSE_URL);
+    const res = await httpsGet(u.hostname, u.pathname + u.search, IP, true);
+    if (!res.code) {
+      verdict = { ok: false, line: `нет ответа (${res.error})`, text: 'пульс не читается' };
+    } else {
       let body = null;
       try {
-        body = await res.json();
+        body = JSON.parse(res.body);
       } catch {
         /* не JSON — оценка ниже даст отказ */
       }
-      verdict = evaluatePulse(res.status, body);
-    } catch (e) {
-      verdict = { ok: false, line: `нет ответа (${e.name})`, text: 'пульс не читается' };
+      verdict = evaluatePulse(res.code, body);
     }
     lines.push(`пульс: ${verdict.line}`);
     if (!verdict.ok) problems.push({ key: 'pulse', text: verdict.text });
