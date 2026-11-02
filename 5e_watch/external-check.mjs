@@ -209,7 +209,10 @@ async function run() {
       }; по IP ${byIp.code || byIp.error}`,
     );
 
-    if (!dnsOk) {
+    // Имя не нашлось у резолвера самой машины (EAI_AGAIN, ENOTFOUND), хотя
+    // один из DoH ответил (часто — из кеша): это тоже отказ DNS, а не сайта.
+    const nameUnresolved = !dnsOk || ['EAI_AGAIN', 'ENOTFOUND'].includes(byName?.error);
+    if (nameUnresolved) {
       problems.push({
         key: `dns:${t.name}`,
         text: ipOk
