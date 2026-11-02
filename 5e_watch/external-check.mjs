@@ -46,6 +46,12 @@ const DOMAIN_WARN_DAYS = 30;
 const REMIND_MS = 60 * 60 * 1000;
 const TIMEOUT_MS = 12_000;
 const DRY = process.argv.includes('--dry');
+// Учения (EXTERNAL_DRILL=fail|ok): настоящие проверки не выполняются, вместо
+// них — одна учебная проблема или её отсутствие. Проверяет машину тревог —
+// отправку, повтор без спама, восстановление — не трогая рабочий сайт.
+// Состояние учений хранится отдельно (EXTERNAL_STATE_FILE в workflow).
+const DRILL = process.env.EXTERNAL_DRILL || '';
+const TAG = DRILL ? '[УЧЕНИЯ] ' : '';
 
 const RESOLVERS = {
   Cloudflare: (n) => `https://cloudflare-dns.com/dns-query?name=${n}&type=A`,
@@ -281,7 +287,13 @@ async function telegram(text) {
 }
 
 async function main() {
-  const { problems, lines } = await run();
+  const { problems, lines } = DRILL
+    ? {
+        problems:
+          DRILL === 'fail' ? [{ key: 'drill', text: 'учебная проблема, рабочий сайт не затронут' }] : [],
+        lines: [`учения: ${DRILL}`],
+      }
+    : await run();
   const now = Date.now();
   const state = loadState();
   const messages = [];
@@ -290,11 +302,11 @@ async function main() {
   for (const p of problems) {
     const prev = state.open[p.key];
     if (!prev) {
-      messages.push(`🔴 5Э снаружи: ${p.text}`);
+      messages.push(`${TAG}🔴 5Э снаружи: ${p.text}`);
       open[p.key] = { since: now, notified: now };
     } else if (now - prev.notified >= REMIND_MS) {
       const min = Math.round((now - prev.since) / 60_000);
-      messages.push(`🔴 5Э снаружи, держится ${min} мин: ${p.text}`);
+      messages.push(`${TAG}🔴 5Э снаружи, держится ${min} мин: ${p.text}`);
       open[p.key] = { since: prev.since, notified: now };
     } else {
       open[p.key] = prev;
@@ -303,7 +315,7 @@ async function main() {
   for (const [key, prev] of Object.entries(state.open)) {
     if (!open[key]) {
       const min = Math.round((now - prev.since) / 60_000);
-      messages.push(`🟢 5Э снаружи: восстановлено (${key}), длилось ~${min} мин`);
+      messages.push(`${TAG}🟢 5Э снаружи: восстановлено (${key}), длилось ~${min} мин`);
     }
   }
 

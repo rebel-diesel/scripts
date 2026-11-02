@@ -5,6 +5,14 @@ name: 5E external check
 # Временная мера (инцидент 2026-11-02, Beget DNS). Расписание GitHub может
 # задерживаться и пропускать запуски: гарантированного времени обнаружения
 # нет, остановку самого расписания эта схема не видит.
+#
+# Зелёный запуск = проверка выполнена и нужные уведомления доставлены, а НЕ
+# «платформа исправна». Красный — тревога не дошла до Telegram.
+#
+# Учения (ручной запуск, drill): fail — учебная проблема, ok — её снятие,
+# undeliverable — учебная проблема с заведомо неверным токеном (проверка
+# запасного канала — письма GitHub о красном запуске). Состояние учений
+# хранится отдельно и рабочее не трогает.
 on:
   schedule:
     - cron: '*/5 * * * *'
@@ -12,6 +20,12 @@ on:
     branches: [main]
     paths: ['5e_watch/**', '.github/workflows/5e-watch.yml']
   workflow_dispatch:
+    inputs:
+      drill:
+        description: 'Учения: none — обычная проверка'
+        type: choice
+        options: [none, fail, ok, undeliverable]
+        default: none
 
 permissions:
   contents: read
@@ -19,6 +33,11 @@ permissions:
 concurrency:
   group: 5e-watch
   cancel-in-progress: false
+
+env:
+  DRILL: ${{ (inputs.drill != '' && inputs.drill != 'none') && inputs.drill || '' }}
+  STATE_DIR: ${{ (inputs.drill != '' && inputs.drill != 'none') && '.external-check-drill' || '.external-check' }}
+  CACHE_PREFIX: ${{ (inputs.drill != '' && inputs.drill != 'none') && '5e-watch-drill-' || '5e-watch-' }}
 
 jobs:
   check:
@@ -35,18 +54,20 @@ jobs:
       # состояния и напоминанием раз в час, а не каждые 5 минут.
       - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
-          path: .external-check
-          key: 5e-watch-${{ github.run_id }}
-          restore-keys: 5e-watch-
+          path: ${{ env.STATE_DIR }}
+          key: ${{ env.CACHE_PREFIX }}${{ github.run_id }}
+          restore-keys: ${{ env.CACHE_PREFIX }}
       - name: Check
         env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.FIVE_E_TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_BOT_TOKEN: ${{ inputs.drill == 'undeliverable' && '000000:undeliverable-drill' || secrets.FIVE_E_TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.FIVE_E_TELEGRAM_CHAT_ID }}
           EXTERNAL_PULSE_URL: ${{ vars.FIVE_E_PULSE_URL }}
           EXTERNAL_TARGETS: ${{ vars.FIVE_E_TARGETS }}
+          EXTERNAL_DRILL: ${{ inputs.drill == 'undeliverable' && 'fail' || env.DRILL }}
+          EXTERNAL_STATE_FILE: ${{ env.STATE_DIR }}/state.json
         run: node 5e_watch/external-check.mjs
       - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         if: always()
         with:
-          path: .external-check
-          key: 5e-watch-${{ github.run_id }}
+          path: ${{ env.STATE_DIR }}
+          key: ${{ env.CACHE_PREFIX }}${{ github.run_id }}
