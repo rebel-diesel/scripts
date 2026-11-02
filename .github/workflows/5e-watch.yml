@@ -1,0 +1,52 @@
+name: 5E external check
+
+# Внешняя проверка платформы 5Э по публичным именам: DNS, HTTPS с ожидаемым
+# кодом, сертификат, срок домена, пульс. Скрипт — 5e_watch/external-check.mjs.
+# Временная мера (инцидент 2026-11-02, Beget DNS). Расписание GitHub может
+# задерживаться и пропускать запуски: гарантированного времени обнаружения
+# нет, остановку самого расписания эта схема не видит.
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  push:
+    branches: [main]
+    paths: ['5e_watch/**', '.github/workflows/5e-watch.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: 5e-watch
+  cancel-in-progress: false
+
+jobs:
+  check:
+    name: DNS and HTTPS from outside
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          sparse-checkout: 5e_watch
+      - name: Tests
+        run: node --test 5e_watch/external-check.test.mjs
+      # Что уже сообщено — между запусками, чтобы тревога шла при смене
+      # состояния и напоминанием раз в час, а не каждые 5 минут.
+      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .external-check
+          key: 5e-watch-${{ github.run_id }}
+          restore-keys: 5e-watch-
+      - name: Check
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.FIVE_E_TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.FIVE_E_TELEGRAM_CHAT_ID }}
+          EXTERNAL_PULSE_URL: ${{ vars.FIVE_E_PULSE_URL }}
+          EXTERNAL_TARGETS: ${{ vars.FIVE_E_TARGETS }}
+        run: node 5e_watch/external-check.mjs
+      - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        if: always()
+        with:
+          path: .external-check
+          key: 5e-watch-${{ github.run_id }}

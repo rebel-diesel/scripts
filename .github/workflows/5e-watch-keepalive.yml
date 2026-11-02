@@ -1,0 +1,26 @@
+name: 5E watch keepalive
+
+# GitHub выключает расписание в публичном репозитории после 60 дней без
+# активности. Раз в месяц обновляем дату обслуживания служебным коммитом.
+on:
+  schedule:
+    - cron: '17 3 1 * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  keepalive:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - name: Update maintenance date
+        run: |
+          date -u +%Y-%m-%dT%H:%M:%SZ > 5e_watch/maintained.txt
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add 5e_watch/maintained.txt
+          git commit -m '5e_watch: maintenance date'
+          git push
