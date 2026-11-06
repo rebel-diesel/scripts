@@ -65,6 +65,7 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.FIVE_E_TELEGRAM_CHAT_ID }}
           EXTERNAL_PULSE_URL: ${{ vars.FIVE_E_PULSE_URL }}
           EXTERNAL_TARGETS: ${{ vars.FIVE_E_TARGETS }}
+          EXTERNAL_GATE_AUTH: ${{ secrets.FIVE_E_GATE_AUTH }}
           EXTERNAL_DRILL: ${{ inputs.drill == 'undeliverable' && 'fail' || env.DRILL }}
           EXTERNAL_STATE_FILE: ${{ env.STATE_DIR }}/state.json
         run: node 5e_watch/external-check.mjs

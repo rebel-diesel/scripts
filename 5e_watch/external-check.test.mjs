@@ -3,10 +3,17 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
-import { evaluatePulse, certDaysLeft } from './external-check.mjs';
+import { evaluatePulse, certDaysLeft, gateHeaders } from './external-check.mjs';
 
 const NOW = Date.parse('2026-11-02T12:00:00Z');
 const at = (s) => new Date(NOW - s * 1000).toISOString();
+
+test('вход: учётка уходит только основному имени', () => {
+  const sent = gateHeaders('5espace.com', 'watch:x', '5espace.com');
+  assert.equal(sent.authorization, `Basic ${Buffer.from('watch:x').toString('base64')}`);
+  assert.deepEqual(gateHeaders('files.5espace.com', 'watch:x', '5espace.com'), {});
+  assert.deepEqual(gateHeaders('5espace.com', '', '5espace.com'), {});
+});
 
 test('пульс: пустой, неполный и неверный ответ — отказ', () => {
   assert.equal(evaluatePulse(200, {}, NOW, 600).ok, false);

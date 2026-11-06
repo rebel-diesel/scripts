@@ -21,7 +21,7 @@
  *
  * Переменные: EXTERNAL_TARGETS (JSON, по умолчанию — ниже), EXTERNAL_IP,
  * EXTERNAL_DOMAIN, EXTERNAL_PULSE_URL, EXTERNAL_PULSE_MAX_AGE_S,
- * EXTERNAL_STATE_FILE, TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID.
+ * EXTERNAL_STATE_FILE, EXTERNAL_GATE_AUTH, TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID.
  * Ключ --dry: только отчёт, без Telegram.
  */
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
@@ -39,6 +39,8 @@ const TARGETS = process.env.EXTERNAL_TARGETS
       { name: 'files.5espace.com', path: '/', expect: 404 },
     ];
 const PULSE_URL = process.env.EXTERNAL_PULSE_URL || '';
+// Сайт закрыт паролем на входе: своя учётка проверки, значение только в GitHub Secrets.
+const GATE_AUTH = process.env.EXTERNAL_GATE_AUTH || '';
 const PULSE_MAX_AGE_S = Number(process.env.EXTERNAL_PULSE_MAX_AGE_S || 600);
 const STATE_FILE = process.env.EXTERNAL_STATE_FILE || '.external-check/state.json';
 const CERT_WARN_DAYS = 14;
@@ -72,6 +74,12 @@ async function resolveVia(resolver, name) {
   }
 }
 
+/** Заголовок входа: только основному имени, домен файлов паролем не закрыт. */
+export function gateHeaders(name, auth = GATE_AUTH, domain = DOMAIN) {
+  if (!auth || name !== domain) return {};
+  return { authorization: `Basic ${Buffer.from(auth).toString('base64')}` };
+}
+
 /** GET по адресу `connectTo` с Host и SNI = name; сертификат проверяется. */
 function httpsGet(name, path, connectTo, withBody = false) {
   return new Promise((resolve) => {
@@ -79,7 +87,7 @@ function httpsGet(name, path, connectTo, withBody = false) {
       {
         host: connectTo,
         servername: name,
-        headers: { host: name, 'user-agent': '5e-external-check' },
+        headers: { host: name, 'user-agent': '5e-external-check', ...gateHeaders(name) },
         path,
         method: 'GET',
         timeout: TIMEOUT_MS,
